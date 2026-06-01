@@ -1,0 +1,45 @@
+# Xcode
+build/
+build-release/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# Models (large binary files)
+Resources/models/
+
+# Secrets
+.env
+.env.*
+Config/LocalSigning.xcconfig
+GhostPepper/Secrets.swift
+
+# macOS
+.DS_Store
+Thumbs.db
+
+# IDE / 编辑器
+.vscode/
+.idea/
+.cursor/
+*.swp
+*.swo
+
+# 临时文件
+tmp/
+temp/
+
+# 构建产物(补充)
+*.ipa
+*.app.zip
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Profiling/coverage data
+*.profraw
+*.profdata
+
+# Logs
+*.log

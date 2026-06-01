@@ -1,0 +1,75 @@
+name: GhostPepper
+options:
+  bundleIdPrefix: com.donnie
+  deploymentTarget:
+    macOS: "14.0"
+  xcodeVersion: "16.0"
+
+packages:
+  WhisperKit:
+    url: https://github.com/argmaxinc/WhisperKit.git
+    from: "0.16.0"
+  FluidAudio:
+    url: https://github.com/FluidInference/FluidAudio.git
+    exactVersion: "0.13.6"
+  LLM.swift:
+    url: https://github.com/obra/LLM.swift.git
+    branch: main
+
+targets:
+  GhostPepper:
+    type: application
+    platform: macOS
+    configFiles:
+      Debug: Config/Signing.xcconfig
+      Release: Config/Signing.xcconfig
+    sources:
+      - GhostPepper
+    settings:
+      base:
+        INFOPLIST_FILE: GhostPepper/Info.plist
+        CODE_SIGN_ENTITLEMENTS: GhostPepper/GhostPepper.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        PRODUCT_BUNDLE_IDENTIFIER: com.donnie.voicetyper.next
+        ENABLE_APP_SANDBOX: NO
+        CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION: YES
+        ENABLE_HARDENED_RUNTIME: NO
+    dependencies:
+      - package: WhisperKit
+      - package: FluidAudio
+      - package: LLM.swift
+        product: LLM
+    entitlements:
+      path: GhostPepper/GhostPepper.entitlements
+      properties:
+        com.apple.security.device.audio-input: true
+
+  GhostPepperTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - GhostPepperTests
+    dependencies:
+      - target: GhostPepper
+    settings:
+      base:
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/GhostPepper.app/Contents/MacOS/GhostPepper"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+        GENERATE_INFOPLIST_FILE: YES
+
+  CleanupModelProbe:
+    type: tool
+    platform: macOS
+    sources:
+      - CleanupModelProbe
+      - CleanupModelProbeSupport
+    dependencies:
+      - package: LLM.swift
+        product: LLM
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.donnie.voicetyper.next.cleanup-model-probe
+        GENERATE_INFOPLIST_FILE: YES
+        LD_RUNPATH_SEARCH_PATHS:
+          - "$(inherited)"
+          - "@executable_path/Frameworks"

@@ -1,0 +1,9 @@
+// Default signing settings for the generated Xcode project.
+// Create Config/LocalSigning.xcconfig to override these locally.
+
+CODE_SIGN_IDENTITY = Apple Development
+CODE_SIGN_STYLE = Automatic
+// 上游(Matt Hartman)的 Team ID 已移除以符合合规。
+// 在 Config/LocalSigning.xcconfig 填你自己的 DEVELOPMENT_TEAM,或在 Xcode Signing 界面选你的账号。
+
+#include? "LocalSigning.xcconfig"
