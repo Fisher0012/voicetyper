@@ -63,7 +63,39 @@ VoiceTyper 是基于 [matthartman/ghost-pepper](https://github.com/matthartman/g
 
 ## 安装
 
-### 方式 1:从源码构建(目前唯一方式)
+### 🤖 方式 0:用 Claude Code 一键安装(推荐,最简单)
+
+如果你用 [Claude Code](https://claude.ai/code),装个 skill 后一句话搞定全程:
+
+```bash
+# 1. 把 skill 装到你的 Claude Code 用户 skills 目录
+mkdir -p ~/.claude/skills/voicetyper-install
+curl -fsSL https://raw.githubusercontent.com/Fisher0012/voicetyper/main/skills/voicetyper-install/SKILL.md \
+  -o ~/.claude/skills/voicetyper-install/SKILL.md
+```
+
+然后在你的 Claude Code 里说:**"帮我装 voicetyper"**
+
+Claude 会自动:
+1. 检查前置(macOS 14+ / Apple Silicon / Xcode / Homebrew / xcodegen / 签名证书)
+2. `git clone` 仓库到 `~/Developer/voicetyper`
+3. 跑 [`scripts/install.sh`](scripts/install.sh):xcodegen → xcodebuild Release → cp 到 `/Applications` → codesign 重签
+4. 打开"辅助功能"设置面板,引导你授权
+5. 启动 app + 告诉你怎么用
+
+全程不需要你跑命令、不需要懂 xcodebuild。
+
+### 方式 1:用 install.sh 脚本(手动)
+
+```bash
+git clone https://github.com/Fisher0012/voicetyper.git ~/Developer/voicetyper
+cd ~/Developer/voicetyper
+bash scripts/install.sh
+```
+
+脚本干的事跟 skill 一样,只是需要你手动跑命令 + 自己开授权面板。
+
+### 方式 2:从源码完全手动构建
 
 需要 Xcode 16+ 和 [xcodegen](https://github.com/yonaskolb/XcodeGen):
 
