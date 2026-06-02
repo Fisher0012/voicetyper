@@ -860,8 +860,6 @@ class AppState: ObservableObject {
         )
         do {
             for try await chunk in stream {
-                // 安全:LLM 输出可能含 <think>...</think>;但 cleanStream 输出原始 SSE delta,
-                // think 标签可能跨多个 chunk。简化:直接注入,后处理在最后做(若需)。
                 streamer.insert(chunk)
                 collected += chunk
             }
@@ -870,6 +868,9 @@ class AppState: ObservableObject {
             return nil
         }
         let final = collected.trimmingCharacters(in: .whitespacesAndNewlines)
+        // 诊断日志:记录 raw 输入和 final 输出,便于排查"LLM 自由扩写"等行为
+        debugLogStore.recordSensitive(category: .cleanup, message: "Stream raw input (\(rawText.count) chars):\n\(rawText)")
+        debugLogStore.recordSensitive(category: .cleanup, message: "Stream final output (\(final.count) chars):\n\(final)")
         return final.isEmpty ? nil : final
     }
 

@@ -79,7 +79,7 @@ final class OpenAICompatibleCleanupBackend: CleanupBackend {
                 ["role": "user", "content": text]
             ],
             "max_tokens": 2048,
-            "temperature": 0.2,
+            "temperature": 0.0,  // 贪心解码避免大模型采样出过长扩写
             "stream": false
         ]
 
@@ -165,7 +165,7 @@ final class OpenAICompatibleCleanupBackend: CleanupBackend {
                         ["role": "user", "content": text]
                     ],
                     "max_tokens": 2048,
-                    "temperature": 0.2,
+                    "temperature": 0.0,  // 贪心解码避免大模型采样出过长扩写
                     "stream": true
                 ]
 
