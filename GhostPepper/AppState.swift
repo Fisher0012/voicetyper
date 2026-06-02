@@ -773,22 +773,10 @@ class AppState: ObservableObject {
             recordingOCRPrefetch.cancel()
         }
 
-        // 流式优化分支:云端 OpenAI-Compatible backend + 需要 paste 时,走"边生成边注入"路径。
-        // 首 token 200-300ms 即开始打字,体感接近 Typeless。失败时(网络/API 错)降级到下面的非流式 flow。
-        if shouldPaste,
-           cleanupEnabled,
-           cleanupBackendOption == CleanupBackendOption.openaiCompatible.rawValue {
-            activePerformanceTrace?.pasteStartAt = Date()
-            if let streamedFinal = await streamCleanedAndPaste(rawText: text, windowContext: windowContext) {
-                activePerformanceTrace?.pasteEndAt = Date()
-                activePerformanceTrace?.cleanupEndAt = Date()
-                TermHistoryStore.shared.record(text: streamedFinal)
-                debugLogStore.record(category: .cleanup, message: "Streamed cleanup + progressive paste completed.")
-                return true
-            }
-            // 流式失败 → 降级到下面的非流式 flow(Cmd+V 一次性 paste)
-            debugLogStore.record(category: .cleanup, message: "Stream path failed, falling back to non-stream flow.")
-        }
+        // 流式路径已禁用 — 实测 CGEvent unicode keystroke 每 chunk 独立键盘事件导致:
+        // (1) 换行符被注入为回车  (2) 每 chunk 延迟累积反而比一次性 Cmd+V 更慢
+        // 保留 streamCleanedAndPaste / TextStreamer / cleanStream 代码,以备日后用更好的注入方式重启。
+        // 当前:ASR → MiniMax 一次性 clean → Cmd+V paste。用户确认"整体还不错"的就是这条路径。
 
         let cleanupResult = await cleanedTranscriptionResult(text, windowContext: windowContext)
         let finalText = cleanupResult.text
