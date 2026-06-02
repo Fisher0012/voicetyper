@@ -24,7 +24,13 @@ VoiceTyper 是基于 [matthartman/ghost-pepper](https://github.com/matthartman/g
 
 ## 核心特性
 
-### 🔒 真 100% 本地
+### 🔒 默认 100% 本地,可选云端 LLM 加速
+
+**默认 100% 本地**(无账号无订阅): ASR(WhisperKit / large-v3-turbo)和 LLM 清理(Qwen 3.5 4B)都跑在你的 Mac。
+
+**可选云端 LLM 清理**(为速度/质量牺牲一点隐私): Settings → Cleanup → backend 选 "Claude API" 或 "OpenAI-Compatible"。后者支持任意 OpenAI 兼容 endpoint(推荐 [MiniMax](https://platform.minimax.io/),约 1/20 Claude 价格,中文能力强)。**音频依然本地处理**,只有清理阶段的文字过云端。云端调用失败时自动 fallback 本地。
+
+
 - ASR 模型(Whisper Large v3 Turbo)和清理 LLM(Qwen 3.5 4B)都在 Apple Silicon 本地跑
 - 模型从 Hugging Face 一次性下载,之后完全离线
 - 没有任何账号系统、API key、订阅、远程更新

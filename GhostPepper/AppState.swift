@@ -69,10 +69,15 @@ class AppState: ObservableObject {
     @AppStorage("pauseMediaWhileRecording") var pauseMediaWhileRecording: Bool = true
     @AppStorage("cleanupBackend") var cleanupBackendOption: String = CleanupBackendOption.localModels.rawValue {
         didSet {
-            textCleaner.useCloudBackend = cleanupBackendOption == CleanupBackendOption.claude.rawValue
+            let option = CleanupBackendOption(rawValue: cleanupBackendOption) ?? .localModels
+            textCleaner.selectedBackendOption = option
+            textCleaner.useCloudBackend = false  // 弃用,由 selectedBackendOption 接管
         }
     }
     @AppStorage("claudeCleanupModel") var claudeCleanupModel: String = ClaudeAPIModel.haiku.rawValue
+    /// OpenAI 兼容 endpoint 配置(用于 MiniMax / OpenAI / DeepSeek / OpenRouter / 自建)
+    @AppStorage("openaiCompatibleBaseURL") var openaiCompatibleBaseURL: String = "https://api.minimaxi.com/v1"
+    @AppStorage("openaiCompatibleModel") var openaiCompatibleModel: String = "MiniMax-M2.7"
     @Published private(set) var pushToTalkChord: KeyChord
     @Published private(set) var toggleToTalkChord: KeyChord
     @Published var postPasteLearningEnabled: Bool {
@@ -111,6 +116,7 @@ class AppState: ObservableObject {
     let cleanupPromptBuilder: CleanupPromptBuilder
     let correctionStore: CorrectionStore
     let cloudCleanupBackend: CloudLLMCleanupBackend
+    let openaiCompatibleCleanupBackend: OpenAICompatibleCleanupBackend
     let textCleaner: TextCleaner
     let chordBindingStore: ChordBindingStore
     let postPasteLearningCoordinator: PostPasteLearningCoordinator
@@ -258,12 +264,19 @@ class AppState: ObservableObject {
         self.cloudCleanupBackend = CloudLLMCleanupBackend(
             model: ClaudeAPIModel(rawValue: cleanupSettingsDefaults.string(forKey: "claudeCleanupModel") ?? "") ?? .haiku
         )
+        self.openaiCompatibleCleanupBackend = OpenAICompatibleCleanupBackend()
         self.textCleaner = TextCleaner(
             cleanupManager: self.textCleanupManager,
             cloudBackend: self.cloudCleanupBackend,
+            openaiCompatibleBackend: self.openaiCompatibleCleanupBackend,
             correctionStore: self.correctionStore
         )
-        self.textCleaner.useCloudBackend = (cleanupSettingsDefaults.string(forKey: "cleanupBackend") ?? "") == CleanupBackendOption.claude.rawValue
+        // 启动时根据持久化的 cleanupBackend 设置 TextCleaner.selectedBackendOption
+        let storedBackend = CleanupBackendOption(
+            rawValue: cleanupSettingsDefaults.string(forKey: "cleanupBackend") ?? ""
+        ) ?? .localModels
+        self.textCleaner.selectedBackendOption = storedBackend
+        self.textCleaner.useCloudBackend = false  // 弃用,完全由 selectedBackendOption 接管
         self.postPasteLearningCoordinator = PostPasteLearningCoordinator(
             correctionStore: self.correctionStore,
             learningEnabled: storedPostPasteLearningEnabled,
@@ -354,6 +367,7 @@ class AppState: ObservableObject {
         self.textCleaner.debugLogger = componentDebugLogger
         self.textCleaner.sensitiveDebugLogger = sensitiveComponentDebugLogger
         self.cloudCleanupBackend.debugLogger = componentDebugLogger
+        self.openaiCompatibleCleanupBackend.debugLogger = componentDebugLogger
         self.postPasteLearningCoordinator.debugLogger = componentDebugLogger
         self.modelManager.debugLogger = componentDebugLogger
     }

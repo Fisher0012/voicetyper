@@ -89,6 +89,7 @@
 		A3183D30BAD0A1C2712E033F /* PermissionChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC1BDC9C549491AC003117EC /* PermissionChecker.swift */; };
 		A3E327275ED67114E0400C99 /* RecognizedVoiceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F96030E4F754A444667F7B07 /* RecognizedVoiceStore.swift */; };
 		A4826C92959DD203D5239B8E /* CleanupPromptBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F36633332009332F588C183E /* CleanupPromptBuilderTests.swift */; };
+		A8E1F370F37421E8748B3ED2 /* OpenAICompatibleCleanupBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A3A35565767D7043AA240E9 /* OpenAICompatibleCleanupBackend.swift */; };
 		A9826A25D65BE571100B792C /* ChunkedTranscriptionPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CAEC58BA358D8ED4206D550 /* ChunkedTranscriptionPipeline.swift */; };
 		A9E5AB4DC4D58FB4C50A1B23 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A4D4E875210CD0DADAF5D7E /* AppState.swift */; };
 		AB0AC6DC19EC0DB440F5B123 /* KeyChordTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F634CFD724E29ECA57C0BB6 /* KeyChordTests.swift */; };
@@ -169,6 +170,7 @@
 		2715D9117D8664700616D95A /* DebugLogWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLogWindow.swift; sourceTree = "<group>"; };
 		2771A24BE8CE83A8BDE8DB0B /* FluidAudioSpeechSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FluidAudioSpeechSession.swift; sourceTree = "<group>"; };
 		29EC2918929DBE8F6F9743A1 /* DebugLogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLogStore.swift; sourceTree = "<group>"; };
+		2A3A35565767D7043AA240E9 /* OpenAICompatibleCleanupBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAICompatibleCleanupBackend.swift; sourceTree = "<group>"; };
 		2ADE6885C71A11CEC8B2A50E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		2AF744C59EEAE51FC81BE6D6 /* sprite_frame_0.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = sprite_frame_0.png; sourceTree = "<group>"; };
 		2B43697CC08695B8E8F8AD01 /* PromptEditorWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptEditorWindow.swift; sourceTree = "<group>"; };
@@ -480,6 +482,7 @@
 				25530C3650F013DEEF1BE207 /* CloudLLMCleanupBackend.swift */,
 				8D087A4D4CD5C6D3C293AE56 /* CorrectionStore.swift */,
 				BDE96F13974B4DC0EEB3C17E /* LocalLLMCleanupBackend.swift */,
+				2A3A35565767D7043AA240E9 /* OpenAICompatibleCleanupBackend.swift */,
 				0EDE03E93B2A9E420B2C74CA /* PostPasteLearningCoordinator.swift */,
 				37863EC2F34067ED0C5B2B6F /* TextCleaner.swift */,
 				37C0D4F04FFD2C13DEACA238 /* TextCleanupManager.swift */,
@@ -761,6 +764,7 @@
 				5AFD58B50823656E71CF3AA9 /* OCRContext.swift in Sources */,
 				CBDE26BEEBD0419A73D09DFC /* OCRRequestFactory.swift in Sources */,
 				CE62853358A180E54150BCA4 /* OnboardingWindow.swift in Sources */,
+				A8E1F370F37421E8748B3ED2 /* OpenAICompatibleCleanupBackend.swift in Sources */,
 				572FDC1B8744EECF73C0EA86 /* PasteSession.swift in Sources */,
 				408C8D6C7BE897429324F4F1 /* PerformanceTrace.swift in Sources */,
 				A3183D30BAD0A1C2712E033F /* PermissionChecker.swift in Sources */,

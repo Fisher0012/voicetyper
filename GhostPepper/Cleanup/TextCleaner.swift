@@ -39,11 +39,15 @@ final class TextCleaner {
     )
 
     private let localBackend: CleanupBackend
-    private let cloudBackend: CleanupBackend?
+    private let cloudBackend: CleanupBackend?         // Claude API(向后兼容字段名)
+    private let openaiCompatibleBackend: CleanupBackend?
     private let correctionStore: CorrectionStore
     var debugLogger: ((DebugLogCategory, String) -> Void)?
     var sensitiveDebugLogger: ((DebugLogCategory, String) -> Void)?
+    /// 已弃用,保留向后兼容 — 用 selectedBackendOption 代替
     var useCloudBackend: Bool = false
+    /// 当前生效的 backend 选择;由 AppState 根据 cleanupBackendOption 设置驱动
+    var selectedBackendOption: CleanupBackendOption = .localModels
 
     static let defaultPrompt = """
     # 你的角色
@@ -139,21 +143,25 @@ final class TextCleaner {
     init(
         localBackend: CleanupBackend,
         cloudBackend: CleanupBackend? = nil,
+        openaiCompatibleBackend: CleanupBackend? = nil,
         correctionStore: CorrectionStore = CorrectionStore()
     ) {
         self.localBackend = localBackend
         self.cloudBackend = cloudBackend
+        self.openaiCompatibleBackend = openaiCompatibleBackend
         self.correctionStore = correctionStore
     }
 
     convenience init(
         cleanupManager: TextCleaningManaging,
         cloudBackend: CleanupBackend? = nil,
+        openaiCompatibleBackend: CleanupBackend? = nil,
         correctionStore: CorrectionStore = CorrectionStore()
     ) {
         self.init(
             localBackend: LocalLLMCleanupBackend(cleanupManager: cleanupManager),
             cloudBackend: cloudBackend,
+            openaiCompatibleBackend: openaiCompatibleBackend,
             correctionStore: correctionStore
         )
     }
@@ -233,7 +241,22 @@ final class TextCleaner {
         )
         let formattedInput = Self.formatCleanupInput(userInput: preprocessed)
 
-        let activeBackend: CleanupBackend = (useCloudBackend && cloudBackend != nil) ? cloudBackend! : localBackend
+        // Backend 选择(三态):
+        //   .localModels        → 本地 Qwen 4B
+        //   .claude             → Anthropic API
+        //   .openaiCompatible   → 任意 OpenAI 兼容 endpoint(MiniMax / OpenAI / DeepSeek...)
+        // 兼容老的 useCloudBackend(true 视为 .claude)
+        let activeBackend: CleanupBackend = {
+            let effective: CleanupBackendOption = useCloudBackend ? .claude : selectedBackendOption
+            switch effective {
+            case .claude:
+                return cloudBackend ?? localBackend
+            case .openaiCompatible:
+                return openaiCompatibleBackend ?? localBackend
+            case .localModels:
+                return localBackend
+            }
+        }()
         let modelCallStart = Date()
         do {
             let cleanedText = try await activeBackend.clean(

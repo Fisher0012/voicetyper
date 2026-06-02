@@ -589,6 +589,53 @@ struct SettingsView: View {
                         Text("Uses Claude API for higher quality cleanup. Requires a Claude API key (stored in your macOS Keychain) and internet connection. Falls back to local models if unavailable. Get a key at [console.anthropic.com](https://console.anthropic.com/settings/keys).")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                    } else if appState.cleanupBackendOption == CleanupBackendOption.openaiCompatible.rawValue {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("OpenAI-Compatible Endpoint")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+
+                            Text("Base URL")
+                                .font(.caption)
+                            TextField("https://api.minimaxi.com/v1", text: $appState.openaiCompatibleBaseURL)
+                                .textFieldStyle(.roundedBorder)
+
+                            Text("Model")
+                                .font(.caption)
+                            TextField("MiniMax-M2.7", text: $appState.openaiCompatibleModel)
+                                .textFieldStyle(.roundedBorder)
+
+                            Text("API Key")
+                                .font(.caption)
+                            HStack {
+                                SecureField("sk-...", text: $openaiAPIKeyInput)
+                                    .textFieldStyle(.roundedBorder)
+                                    .onChange(of: openaiAPIKeyInput) { _, _ in
+                                        openaiAPIKeySaved = false
+                                    }
+                                Button(openaiAPIKeySaved ? "Saved" : "Save") {
+                                    _ = KeychainHelper.set(openaiAPIKeyInput, for: OpenAICompatibleCleanupBackend.keychainKey)
+                                    openaiAPIKeySaved = true
+                                }
+                                .disabled(openaiAPIKeyInput.isEmpty)
+                                Button("Clear") {
+                                    KeychainHelper.delete(OpenAICompatibleCleanupBackend.keychainKey)
+                                    openaiAPIKeyInput = ""
+                                    openaiAPIKeySaved = false
+                                }
+                                .disabled(openaiAPIKeyInput.isEmpty && !openaiAPIKeySaved)
+                            }
+
+                            if !openaiAPIKeySaved {
+                                Text("API key not configured. Add it above to enable cloud cleanup.")
+                                    .font(.caption)
+                                    .foregroundStyle(.orange)
+                            }
+                        }
+
+                        Text("任何 OpenAI Chat Completions 兼容 endpoint。**推荐 MiniMax**(便宜约 1/20 Claude,中文能力强):base URL `https://api.minimaxi.com/v1`,model 填 `MiniMax-M2.7` 或 `MiniMax-M2.5`,在 [platform.minimax.io](https://platform.minimax.io/) 获取 API key。也可用 OpenAI / DeepSeek / OpenRouter / Together AI / 自建 endpoint。失败时自动 fallback 本地模型。")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     } else {
                         Text("When enabled, Ghost Pepper runs local cleanup with the selected cleanup model from the Models section.")
                             .font(.caption)
@@ -778,6 +825,8 @@ struct SettingsView: View {
 
     @State private var claudeAPIKeyInput: String = KeychainHelper.get(AnthropicProvider.keychainKey) ?? ""
     @State private var claudeAPIKeySaved: Bool = (KeychainHelper.get(AnthropicProvider.keychainKey) ?? "").isEmpty == false
+    @State private var openaiAPIKeyInput: String = KeychainHelper.get(OpenAICompatibleCleanupBackend.keychainKey) ?? ""
+    @State private var openaiAPIKeySaved: Bool = (KeychainHelper.get(OpenAICompatibleCleanupBackend.keychainKey) ?? "").isEmpty == false
 
 }
 
