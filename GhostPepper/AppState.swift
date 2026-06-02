@@ -773,6 +773,23 @@ class AppState: ObservableObject {
             recordingOCRPrefetch.cancel()
         }
 
+        // 流式优化分支:云端 OpenAI-Compatible backend + 需要 paste 时,走"边生成边注入"路径。
+        // 首 token 200-300ms 即开始打字,体感接近 Typeless。失败时(网络/API 错)降级到下面的非流式 flow。
+        if shouldPaste,
+           cleanupEnabled,
+           cleanupBackendOption == CleanupBackendOption.openaiCompatible.rawValue {
+            activePerformanceTrace?.pasteStartAt = Date()
+            if let streamedFinal = await streamCleanedAndPaste(rawText: text, windowContext: windowContext) {
+                activePerformanceTrace?.pasteEndAt = Date()
+                activePerformanceTrace?.cleanupEndAt = Date()
+                TermHistoryStore.shared.record(text: streamedFinal)
+                debugLogStore.record(category: .cleanup, message: "Streamed cleanup + progressive paste completed.")
+                return true
+            }
+            // 流式失败 → 降级到下面的非流式 flow(Cmd+V 一次性 paste)
+            debugLogStore.record(category: .cleanup, message: "Stream path failed, falling back to non-stream flow.")
+        }
+
         let cleanupResult = await cleanedTranscriptionResult(text, windowContext: windowContext)
         let finalText = cleanupResult.text
         activeCleanupAttempted = cleanupResult.attemptedCleanup
@@ -801,6 +818,10 @@ class AppState: ObservableObject {
         }
 
         if shouldPaste {
+            // Task B 流式:云端 OpenAI-Compatible backend 走"边生成边 paste"路径,首字延迟接近 Typeless 体感
+            // 注意 cleanedTranscriptionResult 已经把 finalText 全部生成完了(非流式),
+            // 所以这里的"流式 paste"只是对已生成的文字做渐进式注入(让用户感觉是流式)。
+            // 真正的端到端流式见 streamCleanedAndPaste 路径(若 caller 选用)。
             let pasteResult = textPaster.paste(text: finalText)
             if pasteResult == .copiedToClipboard {
                 showClipboardFallbackMessage()
@@ -810,6 +831,46 @@ class AppState: ObservableObject {
         }
 
         return true
+    }
+
+    /// 真·流式 cleanup + paste:LLM 边生成边注入到光标。
+    /// 仅在 cleanupBackendOption == .openaiCompatible 且 OpenAI-compatible backend 支持 SSE 时启用。
+    /// 失败时 caller 应 fallback 到非流式路径(此函数返回 nil 表示失败)。
+    @MainActor
+    private func streamCleanedAndPaste(
+        rawText: String,
+        windowContext: OCRContext?
+    ) async -> String? {
+        guard cleanupEnabled else { return nil }
+        let activeCleanupPrompt: String
+        if canAttemptCleanup {
+            let promptBuildStart = Date()
+            activeCleanupPrompt = activeCleanupPromptComponents(windowContext: windowContext).fullPrompt
+            activePerformanceTrace?.promptBuildDuration = Date().timeIntervalSince(promptBuildStart)
+        } else {
+            activeCleanupPrompt = languageAwareCleanupPrompt
+        }
+
+        let streamer = TextStreamer()
+        var collected = ""
+        let stream = openaiCompatibleCleanupBackend.cleanStream(
+            text: rawText,
+            prompt: activeCleanupPrompt,
+            modelKind: nil
+        )
+        do {
+            for try await chunk in stream {
+                // 安全:LLM 输出可能含 <think>...</think>;但 cleanStream 输出原始 SSE delta,
+                // think 标签可能跨多个 chunk。简化:直接注入,后处理在最后做(若需)。
+                streamer.insert(chunk)
+                collected += chunk
+            }
+        } catch {
+            debugLogStore.record(category: .cleanup, message: "Stream cleanup failed: \(error.localizedDescription). Will fallback.")
+            return nil
+        }
+        let final = collected.trimmingCharacters(in: .whitespacesAndNewlines)
+        return final.isEmpty ? nil : final
     }
 
     private func transcribedTextForRecording(

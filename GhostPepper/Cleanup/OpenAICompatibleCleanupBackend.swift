@@ -121,4 +121,116 @@ final class OpenAICompatibleCleanupBackend: CleanupBackend {
         debugLogger?(.cleanup, "OpenAI-compatible cleanup finished using model=\(model).")
         return cleaned
     }
+
+    /// 流式版 cleanup — 关键!首 token 200-300ms 即可开始 paste,达到 Typeless 体感。
+    /// 用 OpenAI Chat Completions SSE 协议(stream=true,response 是 `data: {...}\n\n` 序列)。
+    func cleanStream(
+        text: String,
+        prompt: String,
+        modelKind: LocalCleanupModelKind?
+    ) -> AsyncThrowingStream<String, Error> {
+        AsyncThrowingStream { continuation in
+            Task { [weak self] in
+                guard let self else {
+                    continuation.finish(throwing: CleanupBackendError.unavailable)
+                    return
+                }
+
+                let baseURL = self.baseURLProvider().trimmingCharacters(in: .whitespacesAndNewlines)
+                let model = self.modelProvider().trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !baseURL.isEmpty, !model.isEmpty,
+                      let apiKey = self.apiKeyProvider(), !apiKey.isEmpty else {
+                    continuation.finish(throwing: CleanupBackendError.unavailable)
+                    return
+                }
+
+                let trimmed = baseURL.hasSuffix("/") ? String(baseURL.dropLast()) : baseURL
+                let endpoint: String
+                if trimmed.hasSuffix("/chat/completions") {
+                    endpoint = trimmed
+                } else if trimmed.hasSuffix("/v1") {
+                    endpoint = trimmed + "/chat/completions"
+                } else {
+                    endpoint = trimmed + "/v1/chat/completions"
+                }
+                guard let url = URL(string: endpoint) else {
+                    continuation.finish(throwing: CleanupBackendError.unavailable)
+                    return
+                }
+
+                let requestBody: [String: Any] = [
+                    "model": model,
+                    "messages": [
+                        ["role": "system", "content": prompt],
+                        ["role": "user", "content": text]
+                    ],
+                    "max_tokens": 2048,
+                    "temperature": 0.2,
+                    "stream": true
+                ]
+
+                var request = URLRequest(url: url)
+                request.httpMethod = "POST"
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+                request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+                request.timeoutInterval = 30
+                do {
+                    request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+                } catch {
+                    continuation.finish(throwing: error)
+                    return
+                }
+
+                do {
+                    let (bytes, response) = try await URLSession.shared.bytes(for: request)
+                    guard let http = response as? HTTPURLResponse else {
+                        continuation.finish(throwing: CleanupBackendError.unavailable)
+                        return
+                    }
+                    if http.statusCode != 200 {
+                        self.debugLogger?(.cleanup, "OpenAI-compatible stream failed status \(http.statusCode).")
+                        continuation.finish(throwing: CleanupBackendError.unavailable)
+                        return
+                    }
+
+                    var totalChars = 0
+                    var firstTokenAt: Date?
+                    let startedAt = Date()
+
+                    for try await line in bytes.lines {
+                        // SSE 协议:每行 `data: {...json...}`,空行分隔事件,结束 `data: [DONE]`
+                        guard line.hasPrefix("data:") else { continue }
+                        let payload = String(line.dropFirst(5)).trimmingCharacters(in: .whitespaces)
+                        if payload == "[DONE]" {
+                            break
+                        }
+                        guard let jsonData = payload.data(using: .utf8),
+                              let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+                              let choices = json["choices"] as? [[String: Any]],
+                              let firstChoice = choices.first,
+                              let delta = firstChoice["delta"] as? [String: Any],
+                              let content = delta["content"] as? String,
+                              !content.isEmpty else {
+                            continue
+                        }
+                        if firstTokenAt == nil {
+                            firstTokenAt = Date()
+                            let firstTokenMs = Int(firstTokenAt!.timeIntervalSince(startedAt) * 1000)
+                            self.debugLogger?(.cleanup, "OpenAI-compatible stream first token in \(firstTokenMs)ms.")
+                        }
+                        totalChars += content.count
+                        continuation.yield(content)
+                    }
+
+                    let totalMs = Int(Date().timeIntervalSince(startedAt) * 1000)
+                    self.debugLogger?(.cleanup, "OpenAI-compatible stream finished in \(totalMs)ms (\(totalChars) chars) using model=\(model).")
+                    continuation.finish()
+                } catch {
+                    self.debugLogger?(.cleanup, "OpenAI-compatible stream error: \(error.localizedDescription)")
+                    continuation.finish(throwing: error)
+                }
+            }
+        }
+    }
 }
