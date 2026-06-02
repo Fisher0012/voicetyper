@@ -530,15 +530,11 @@ class AppState: ObservableObject {
             // 走 stopRecordingAndTranscribe → transcribedTextForRecording → transcribeAudioBuffer(整段) 的 batch 路径
         }
 
-        // Task C: VAD reset + 静音触发回调 — 检测到连续静音自动停止录音
+        // VAD 自动停止默认禁用 — 用户反馈说话带思考停顿(>2s)被误触发,体验差。
+        // 录音起止完全由热键控制(按右 Cmd 开始 → 再按右 Cmd 停止 / 或按右 Option push-to-talk)。
+        // 保留 VADMonitor 代码 + chunk callback 中的 process 调用,以备未来按需启用。
         vadMonitor.reset()
-        vadMonitor.onSilenceDetected = { [weak self] in
-            Task { @MainActor in
-                guard let self else { return }
-                self.debugLogStore.record(category: .hotkey, message: "VAD detected silence, auto-stopping recording.")
-                await self.stopRecordingAndTranscribe()
-            }
-        }
+        vadMonitor.onSilenceDetected = nil
 
         guard ignoreOtherSpeakers, selectedSpeechModelSupportsSpeakerFiltering else {
             if let activeRecordingTranscriptionSession {
