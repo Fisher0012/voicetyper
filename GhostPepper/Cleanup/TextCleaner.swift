@@ -300,6 +300,36 @@ final class TextCleaner {
 
             switch error {
             case .unavailable:
+                // 云端 backend 不可用(无 key/网络失败/格式错)→ 尝试 fallback 到本地 LLM,而非直接返回原文。
+                // 只在 activeBackend 不是 localBackend 时 fallback;若已是本地,直接返回原文。
+                if activeBackend !== localBackend {
+                    debugLogger?(.cleanup, "Cloud cleanup backend unavailable, falling back to local LLM.")
+                    do {
+                        let localText = try await localBackend.clean(
+                            text: formattedInput,
+                            prompt: activePrompt,
+                            modelKind: modelKind
+                        )
+                        let modelCallDuration = Date().timeIntervalSince(modelCallStart)
+                        let sanitizedText = Self.sanitizeCleanupOutput(localText)
+                        let finalText = Self.simplifyTraditionalChinese(sanitizedText)
+                        return TextCleanerResult(
+                            text: finalText,
+                            performance: TextCleanerPerformance(
+                                modelCallDuration: modelCallDuration,
+                                postProcessDuration: Date().timeIntervalSince(postProcessStart)
+                            ),
+                            transcript: TextCleanerTranscript(
+                                prompt: activePrompt,
+                                inputText: formattedInput,
+                                rawOutput: localText
+                            ),
+                            usedFallback: true
+                        )
+                    } catch {
+                        debugLogger?(.cleanup, "Local LLM fallback also failed, returning raw transcription.")
+                    }
+                }
                 debugLogger?(.cleanup, "Cleanup backend unavailable, returning raw transcription.")
                 return TextCleanerResult(
                     text: text,

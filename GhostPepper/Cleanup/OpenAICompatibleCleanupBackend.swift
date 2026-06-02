@@ -21,12 +21,19 @@ final class OpenAICompatibleCleanupBackend: CleanupBackend {
     private let apiKeyProvider: () -> String?
     var debugLogger: ((DebugLogCategory, String) -> Void)?
 
+    /// 默认值必须与 AppState 的 @AppStorage 默认一致 — @AppStorage 不会把默认值写入 UserDefaults,
+    /// 它只是在读到 nil 时返回默认值。所以这里的 fallback 必须显式提供。
+    static let defaultBaseURL = "https://api.minimaxi.com/v1"
+    static let defaultModel = "MiniMax-M2.7"
+
     init(
         baseURLProvider: @escaping () -> String = {
-            UserDefaults.standard.string(forKey: "openaiCompatibleBaseURL") ?? ""
+            UserDefaults.standard.string(forKey: "openaiCompatibleBaseURL")
+                ?? OpenAICompatibleCleanupBackend.defaultBaseURL
         },
         modelProvider: @escaping () -> String = {
-            UserDefaults.standard.string(forKey: "openaiCompatibleModel") ?? ""
+            UserDefaults.standard.string(forKey: "openaiCompatibleModel")
+                ?? OpenAICompatibleCleanupBackend.defaultModel
         },
         apiKeyProvider: @escaping () -> String? = {
             KeychainHelper.get(OpenAICompatibleCleanupBackend.keychainKey)
