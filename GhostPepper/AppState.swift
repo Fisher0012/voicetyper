@@ -853,6 +853,8 @@ class AppState: ObservableObject {
 
         let streamer = TextStreamer()
         var collected = ""
+        var insideThinkTag = false  // 过滤 <think>...</think> 推理链(MiniMax M2.7 reasoning model)
+        var thinkBuffer = ""        // 累积 think 区间内容用于日志,不注入光标
         let stream = openaiCompatibleCleanupBackend.cleanStream(
             text: rawText,
             prompt: activeCleanupPrompt,
@@ -860,8 +862,37 @@ class AppState: ObservableObject {
         )
         do {
             for try await chunk in stream {
-                streamer.insert(chunk)
-                collected += chunk
+                // 跨 chunk 的 <think>...</think> 过滤状态机
+                var remaining = chunk
+                while !remaining.isEmpty {
+                    if insideThinkTag {
+                        // 在 <think> 内,找 </think> 结束标记
+                        if let endRange = remaining.range(of: "</think>") {
+                            thinkBuffer += String(remaining[remaining.startIndex..<endRange.lowerBound])
+                            remaining = String(remaining[endRange.upperBound...])
+                            insideThinkTag = false
+                        } else {
+                            thinkBuffer += remaining
+                            remaining = ""
+                        }
+                    } else {
+                        // 在 <think> 外,找 <think> 开始标记
+                        if let startRange = remaining.range(of: "<think>") {
+                            let before = String(remaining[remaining.startIndex..<startRange.lowerBound])
+                            if !before.isEmpty {
+                                streamer.insert(before)
+                                collected += before
+                            }
+                            remaining = String(remaining[startRange.upperBound...])
+                            insideThinkTag = true
+                        } else {
+                            // 无 think tag,全部注入
+                            streamer.insert(remaining)
+                            collected += remaining
+                            remaining = ""
+                        }
+                    }
+                }
             }
         } catch {
             debugLogStore.record(category: .cleanup, message: "Stream cleanup failed: \(error.localizedDescription). Will fallback.")
