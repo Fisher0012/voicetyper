@@ -87,7 +87,7 @@ final class OpenAICompatibleCleanupBackend: CleanupBackend {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        request.timeoutInterval = 15
+        request.timeoutInterval = 4  // MiniMax 实测波动大(2s~15s),超 4s 走本地 fallback 更可控
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
 
         let (data, response) = try await URLSession.shared.data(for: request)
