@@ -379,9 +379,9 @@ final class ModelManager: ObservableObject {
             downloadBase: modelsDir,
             verbose: false,
             logLevel: .error,
-            prewarm: true,  // 预热模型,消除首次转写延迟(移植自 voicetyper 的启动预热优化)
+            prewarm: false,  // 关闭预热:prewarm 跑一次完整 inference pipeline,small 要 5-10s,large 要 30-60s,严重拖慢启动。首次转写会稍慢但可接受。
             load: true,
-            download: true
+            download: false  // 关闭启动时联网检查更新:模型已下载好,每次启动检查 HuggingFace 在国内网络下几十秒超时。如需更新模型,用户在 Settings 手动点下载。
         )
         whisperKit = try await WhisperKit(config)
     }
